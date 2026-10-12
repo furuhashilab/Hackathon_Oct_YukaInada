@@ -1,7 +1,7 @@
-# 人が描いた街、AIが見つけた街 — Overture Maps × GeoAI
+# 人が描いたデータとAIが見つけたデータを比較 (Overture Maps × GeoAI)
 
-Overture Maps の建物データを「出どころ」で色分けし、OpenStreetMap のボランティアが**手で描いた建物**と、AI が衛星画像から**自動で見つけた建物**を比べる Web マップです。
-SotM Asia 2026 Osaka で紹介された Overture Maps と GeoAI を、首都圏のデータで実際に使ってみました。
+Overture Maps の建物データを色分けし、OpenStreetMap のボランティアが**手で描いた建物**と、AI が衛星画像から**自動で見つけた建物**を比べるWebマップを作成。
+SotM Asia 2026 Osakaの振り返りとして、Overture MapsとGeoAIを使用しました。
 
 **▶ デモ:** https://furuhashilab.github.io/Hackathon_Oct_YukaInada/
 
@@ -23,7 +23,7 @@ SotM Asia 2026 Osaka で紹介された Overture Maps と GeoAI を、首都圏�
 2. **地名・駅名検索** — 「淵野辺」「ふちのべ」のように漢字でもひらがなでも検索でき、その場所の半径1kmの内訳（人 / AI）、首都圏平均との比較、OSM 編集候補度を表示
 3. **OSM 編集候補ランキング** — AI だけが見つけた建物が多い場所トップ10。iD エディタや Overture Explorer へのリンク付き
 4. **目印のピン** — 駅・大学・病院・市区役所・商業施設・学校・公園・スーパー・コンビニを Overture places から約2.9万件。ズームに応じて表示し、重なるピンは間引きます。大学などは施設名でも検索できます
-5. **建物の形（淵野辺周辺）** — 青山学院大学 相模原キャンパス周辺は建物1棟ずつの形を表示。クリックで出どころと OSM の最終編集年がわかります
+5. **建物の形** — 例として、青山学院大学 相模原キャンパスなど複数の建物が含まれる施設は建物1棟ずつの形を表示。クリックで出どころと OSM の最終編集年がわかります。
 
 ## Overture Maps の使いどころ
 
