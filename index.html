@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>人が描いた街、AIが見つけた街</title>
+  <meta name="description" content="Overture Maps の建物データを出どころで色分けし、OpenStreetMap の人が描いた建物と、AIが衛星画像から見つけた建物を比べるWebマップ。" />
+  <meta name="theme-color" content="#04050a" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <!-- Tailwind CSS (ビルド不要のブラウザ版) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --font-sans: "Inter", "Noto Sans JP", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, monospace;
+      --color-ink: #04050a;
+      --color-fg: #e9edf5;
+      --color-muted: #8c94a8;
+      --color-dim: #5c6478;
+      --color-line: rgb(255 255 255 / 0.08);
+      --color-human: #3b9eff;
+      --color-ai: #ff3d7f;
+      --color-eab: #ffb020;
+    }
+  </style>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="bg-ink text-fg font-sans antialiased">
+  <div id="app" class="relative flex h-[100dvh] flex-col overflow-hidden lg:block">
+
+    <!-- ============ Header ============ -->
+    <header class="glass z-[700] flex h-14 shrink-0 items-center gap-3 px-4 lg:absolute lg:left-4 lg:top-4 lg:w-[360px] lg:rounded-2xl">
+      <div class="brand-mark" aria-hidden="true"><i></i><b></b></div>
+      <div class="min-w-0 leading-tight">
+        <h1 class="truncate text-[14.5px] font-bold tracking-wide"><span class="text-human">人が描いた街</span>、<span class="text-ai">AIが見つけた街</span></h1>
+        <p class="truncate font-mono text-[10px] uppercase tracking-[0.18em] text-muted">Overture Maps × GeoAI · Tokyo Metro</p>
+      </div>
+      <button id="btnAbout" class="icon-btn ml-auto" aria-label="このマップについて"><i class="ic" data-i="info"></i></button>
+    </header>
+
+    <!-- ============ Search ============ -->
+    <div class="search-wrap z-[1100] px-3 py-2 lg:absolute lg:left-1/2 lg:top-4 lg:w-[min(520px,calc(100%-860px))] lg:min-w-[340px] lg:-translate-x-1/2 lg:p-0">
+      <div class="search glass" id="search">
+        <i class="ic text-muted" data-i="search"></i>
+        <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="地名・駅・施設名で検索（例：淵野辺駅）" aria-label="地名・駅名で検索" />
+        <kbd class="hidden lg:inline-flex">/</kbd>
+      </div>
+      <ul id="results" class="results glass" role="listbox" hidden></ul>
+    </div>
+
+    <!-- ============ Map ============ -->
+    <main class="relative h-[44dvh] shrink-0 lg:absolute lg:inset-0 lg:h-auto">
+      <div id="map" class="absolute inset-0" role="application" aria-label="建物の出どころマップ"></div>
+
+      <div class="legend glass absolute bottom-3 left-3 z-[500] lg:bottom-6 lg:left-[392px]" id="legend">
+        <div class="lg-row"><span class="sw sw-human"></span>人が描いた建物 <em>OpenStreetMap</em></div>
+        <div class="lg-row"><span class="sw sw-ai"></span>AIが見つけた建物 <em>衛星画像から検出</em></div>
+        <p id="legendNote" class="mt-1.5 font-mono text-[10px] text-dim"></p>
+      </div>
+    </main>
+
+    <!-- ============ Mobile tabs ============ -->
+    <nav class="tabs glass z-[550] flex shrink-0 lg:hidden" role="tablist">
+      <button class="tab" data-tab="overview" role="tab">全体</button>
+      <button class="tab" data-tab="ranking" role="tab">OSM編集候補</button>
+      <button class="tab is-active" data-tab="report" role="tab">エリア</button>
+    </nav>
+
+    <div id="sheet" class="relative min-h-0 flex-1 overflow-y-auto lg:contents">
+
+      <!-- ============ Left ============ -->
+      <aside class="lg-glass panel-scroll lg:absolute lg:bottom-4 lg:left-4 lg:top-[84px] lg:z-[550] lg:w-[360px] lg:overflow-y-auto lg:rounded-2xl">
+
+        <section class="pane p-5" data-pane="overview">
+          <p class="eyebrow">Overture Maps · buildings</p>
+          <h2 class="mt-2 text-[19px] font-black leading-snug tracking-wide" style="text-wrap:balance">
+            首都圏 <span id="totalBig" class="num-display">—</span>棟。<br />その建物は、誰が描いた？
+          </h2>
+          <p class="mt-2 text-[12.5px] leading-relaxed text-muted">
+            Overture Maps の建物には、1棟ずつ「どこから来たデータか」が記録されています。
+            ボランティアが手で描いた <b class="text-human">OpenStreetMap</b> と、AIが衛星画像から自動で見つけた建物を色分けしました。
+          </p>
+
+          <div class="split mt-5" aria-hidden="true">
+            <span id="splitHuman" class="split-h"></span><span id="splitAi" class="split-a"></span>
+          </div>
+          <div class="mt-2 flex justify-between text-[12px]">
+            <span class="text-human"><b id="pctHuman" class="num-md">—</b> 人</span>
+            <span class="text-ai">AI <b id="pctAi" class="num-md">—</b></span>
+          </div>
+
+          <dl class="src-list mt-4" id="srcList"></dl>
+
+          <div class="section-head mt-7"><h3>地図の表示</h3></div>
+          <div class="segmented" id="segMode" role="radiogroup" aria-label="表示方法">
+            <span class="seg-thumb"></span>
+            <button role="radio" data-value="dots"><b>ドット</b><small>1点＝建物</small></button>
+            <button role="radio" data-value="share"><b>AI比率</b><small>約450mマス</small></button>
+          </div>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <button class="toggle is-on" id="tgHuman" aria-pressed="true"><span class="sw sw-human"></span>人が描いた</button>
+            <button class="toggle is-on" id="tgAi" aria-pressed="true"><span class="sw sw-ai"></span>AIが見つけた</button>
+            <button class="toggle is-on col-span-2" id="tgPins" aria-pressed="true"><span class="sw sw-pin"></span>目印のピン（駅・大学・病院・お店など）</button>
+          </div>
+          <p class="mt-2 text-[11px] leading-relaxed text-dim" style="color:var(--dim)">ピンは Overture Maps の <code>places</code> から。ズームするとスーパーや学校、さらに近づくとコンビニが出ます。</p>
+
+          <div class="section-head mt-7"><h3>Overture Maps の使いどころ</h3></div>
+          <ul class="uses">
+            <li><code>buildings</code><div><b>建物の色分け</b><span>各建物の <code>sources[0].dataset</code> を読み、OSM か AI 由来かを判定</span></div></li>
+            <li><code>divisions</code><div><b>地名検索・エリア名</b><span>町丁目と市区町村の名前・位置・所属を使用</span></div></li>
+            <li><code>places</code><div><b>駅名検索・目印のピン</b><span>駅約1,200（位置のずれた投稿は除外）と、大学・病院・役所・商業施設・学校・公園・スーパー・コンビニ約2.9万件</span></div></li>
+          </ul>
+        </section>
+
+        <section class="pane border-t border-line p-5" data-pane="ranking">
+          <div class="section-head"><h3>OSM 編集候補ランキング</h3><span class="en">Map these next</span></div>
+          <p class="-mt-1 mb-3 text-[12px] leading-relaxed text-muted">AIは見つけたのに、OpenStreetMap にはまだ描かれていない建物が多い場所です（周辺約1.3km四方の棟数）。</p>
+          <ol id="ranking" class="ranking"></ol>
+        </section>
+      </aside>
+
+      <!-- ============ Right: area report ============ -->
+      <aside class="pane is-active lg-glass panel-scroll lg:absolute lg:bottom-4 lg:right-4 lg:top-4 lg:z-[550] lg:w-[380px] lg:overflow-y-auto lg:rounded-2xl" data-pane="report">
+        <div id="report" class="p-5"></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ============ About ============ -->
+  <dialog id="about" class="dialog">
+    <div class="p-6">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="eyebrow">How it works</p>
+          <h2 class="mt-1 text-lg font-bold">このマップの仕組み</h2>
+        </div>
+        <button class="icon-btn" data-close aria-label="閉じる"><i class="ic" data-i="close"></i></button>
+      </div>
+      <ol class="about-list mt-4">
+        <li><b>データ</b> — Overture Maps Foundation の 2026-09-23.1 リリースの建物データ（GeoParquet）を、首都圏の範囲で読み込みました。前処理は <code>build_*.py</code> の Python スクリプトです。</li>
+        <li><b>出どころの判定</b> — 各建物の <code>sources[0].dataset</code> が <code>OpenStreetMap</code> なら「人が描いた」、<code>Microsoft ML Buildings</code> と <code>doi:10.5281/zenodo.8174931</code>（East Asian Buildings）なら「AIが見つけた」としています。どちらも衛星画像から機械学習で建物を抽出したデータです。</li>
+        <li><b>なぜ OSM 編集候補になるのか</b> — Overture は OpenStreetMap の建物を優先し、OSM に建物がない場所を AI 由来の建物で補っています。つまり AI の建物が多い場所は、OSM にまだ描かれていない建物が多い場所です。</li>
+        <li><b>集計</b> — 約450mのマスごとに棟数を数えています。エリアレポートは、選んだ地点から半径1km以内のマスの合計です。ドット表示の点はマスの中にランダムに置いており、1点が何棟にあたるかはズームで変わります（凡例に表示）。</li>
+        <li><b>建物の形</b> — 淵野辺（青山学院大学 相模原キャンパス周辺）だけは、建物1棟ずつの形を取り出しました。ズームすると表示され、クリックで出どころと OSM の更新年がわかります。</li>
+      </ol>
+      <p class="mt-4 rounded-xl border border-line bg-white/[0.03] p-3 text-[12px] leading-relaxed text-muted">
+        AI の検出には誤り（建物でない物の検出や、形のずれ）が含まれることがあります。OSM に描くときは、航空写真や現地で確認してから編集してください。
+      </p>
+      <p class="mt-3 font-mono text-[10.5px] leading-relaxed text-dim">
+        Data © Overture Maps Foundation · © OpenStreetMap contributors (ODbL) · Microsoft ML Buildings (ODbL) · East Asian Buildings (doi:10.5281/zenodo.8174931) · 背景地図: 国土地理院（淡色地図）
+      </p>
+    </div>
+  </dialog>
+
+  <script src="grid.js"></script>
+  <script src="search.js"></script>
+  <script src="landmarks.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
