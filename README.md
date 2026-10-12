@@ -1,7 +1,7 @@
 # 人が描いたデータとAIが見つけたデータを比較 (Overture Maps × GeoAI)
 
 Overture Maps の建物データを色分けし、OpenStreetMap のボランティアが**手で描いた建物**と、AI が衛星画像から**自動で見つけた建物**を比べるWebマップを作成。
-SotM Asia 2026 Osakaの振り返りとして、Overture MapsとGeoAIを使用しました。
+SotM Asia 2026 Osakaの振り返りとして、Overture MapsとClaude codeを使用しました。
 
 **▶ デモ:** https://furuhashilab.github.io/Hackathon_Oct_YukaInada/
 
