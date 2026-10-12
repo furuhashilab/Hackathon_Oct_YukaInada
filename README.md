@@ -52,8 +52,4 @@ build_landmarks.py        Overture places から目印の施設を抽出
 
 `index.html` をブラウザで開くだけで動きます（ビルド不要）。データを作り直すときは `pip install pyarrow numpy pykakasi` のあと `python build_sources.py`、`python build_search.py`、`python build_landmarks.py` を実行します（Overture の S3 から匿名で読み込み）。
 
-## 注意
-
-AI の検出には誤りが含まれることがあります。OSM に描くときは航空写真や現地で確認してから編集してください。
-
 Data © Overture Maps Foundation (release 2026-09-23.1) · © OpenStreetMap contributors (ODbL) · Microsoft ML Buildings (ODbL) · East Asian Buildings (doi:10.5281/zenodo.8174931) · 背景地図: 国土地理院 淡色地図
